@@ -1,4 +1,4 @@
-# 🕷️ AntiWare - Website Threat & Malware Scanner
+# 🕷️ AntiWare - Website Threat & Malware Scanner ( ANTI MALWARE DAN MALWARE SCANNER )
 📌 Ringkasan
 AntiWare adalah sebuah alat keamanan siber otomatis yang digunakan untuk melakukan website vulnerability scanning dan mendeteksi skrip berbahaya (seperti malware, ransomware, dan backdoor) pada:
 Website/URL online File lokal (HTML, JS, PHP, dll). File yang terindikasi malware atau obfuscation File hasil upload pengguna (CTF/web pentest) tool ini memiliki 3 mode utama:
