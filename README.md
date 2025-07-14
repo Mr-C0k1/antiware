@@ -87,6 +87,7 @@ chmod +x install_antiware.sh
 ./install_antiware.sh >> or bash command
 pip install -r requirements.txt --break-system-pakages ( jika pip anda bermasalah di GNU kali linux atau ubuntu. )
 antiware https://targetwebsite.com >>> running command
+khusus detector ransomware akira ( python3 antiware.py --monitor ) 
 
 #FILE SCAN MODE
 antiware -f suspicious_file.html
