@@ -124,6 +124,35 @@ python3 /opt/antiware/antiware_gui.py
 
 
 
+🛡️ Deteksi Ransomware Akira
+Modul Anti-Akira dalam aware.py mendeteksi secara aktif pola dan aktivitas khas dari ransomware Akira, yang dikenal sebagai ancaman siber global sejak 2023.
+
+🔍 Deteksi berbasis:
+File ransom note seperti akira_readme.txt
+
+Ekstensi file terenkripsi: .akira
+
+Script enkripsi: akira_enc.php
+
+PowerShell Command: Set-MpPreference -DisableRealtimeMonitoring (digunakan untuk mematikan antivirus sebelum enkripsi)
+
+🧬 Signature Hash (MD5):
+Menggunakan hash signature pada file statik untuk mengenali varian malware yang dikenal.
+
+🔁 Real-time Monitoring:
+Mode pemantauan direktori (--monitor) memungkinkan deteksi ransomware saat file dibuat, dimodifikasi, atau diupload secara mencurigakan.
+
+✅ Tujuan:
+Mendeteksi serangan sebelum ransomware melakukan enkripsi massal
+
+Memberikan laporan langsung ke dashboard atau terminal
+
+Meningkatkan kewaspadaan server web terhadap serangan kriptografi ilegal
+
+
+
+
+
 
 
   
