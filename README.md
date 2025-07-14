@@ -84,20 +84,31 @@ pip install -r requirements.txt --break-system-pakages ( jika pip anda bermasala
 git clone https://github.com/Mr-C0k1/antiware.git
 cd antiware
 chmod +x install_antiware.sh
-./install_antiware.sh
+./install_antiware.sh >> or bash command
+pip install -r requirements.txt --break-system-pakages ( jika pip anda bermasalah di GNU kali linux atau ubuntu. )
 antiware https://targetwebsite.com >>> running command
 
 #FILE SCAN MODE
 antiware -f suspicious_file.html
+antiware -l list_url.txt
 
 #API Mode
 antiware --api
 Endpoint aktif di: http://localhost:5000/api/scan
 
+#Gunakan header:
+(pgsql)
+Authorization: Bearer <token>
+Content-Type: application/json
+
+#GUI Interface (Opsional)
+Jika ingin menggunakan GUI:
+python3 antiware_gui.py
+
 # GUI Mode
 python3 /opt/antiware/antiware_gui.py
 
-
+#contoh output
 {
   "url": "http://example.com",
   "scan_time": "2025-07-14T12:20:00Z",
@@ -110,6 +121,7 @@ python3 /opt/antiware/antiware_gui.py
     }
   ]
 }
+
 
 
 
