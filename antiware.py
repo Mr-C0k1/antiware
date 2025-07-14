@@ -242,7 +242,7 @@ def main():
     parser.add_argument('-l', '--list', help='File list of URLs to scan')
     parser.add_argument('-f', '--file', help='Scan local file content')
     parser.add_argument('-o', '--output', help='Save result to .txt')
-    parser.add_argument('--api', action='store_true', help='Run as API server')
+    parser.add_argument('--api', nargs='?', const=True, help='Run as API server (optionally with token)')
     parser.add_argument('--set-token', help='Set API Token')
     parser.add_argument('--set-vtkey', help='Set VirusTotal API Key')
     parser.add_argument('--set-dashboard', help='Set Dashboard Endpoint')
@@ -268,8 +268,13 @@ def main():
     all_results = []
 
     if args.api:
-        app.run(host='0.0.0.0', port=5000)
-        return
+    if args.api is not True:
+        set_key(ENV_FILE, 'API_TOKEN', args.api)
+        print(f'[✔] API Token set to {args.api}')
+        load_dotenv(ENV_FILE, override=True)
+        app.config['API_TOKEN'] = os.getenv('API_TOKEN')
+    app.run(host='0.0.0.0', port=5000)
+    return
 
     if args.list:
         with open(args.list) as f:
