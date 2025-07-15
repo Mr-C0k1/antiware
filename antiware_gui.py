@@ -54,7 +54,15 @@ class AntiWareGUI(QWidget):
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            self.output_area.setText(output)
+                        try:
+                parsed = json.loads(output)
+                vuln_count = len(parsed.get('vulnerabilities', []))
+                summary = f"🔍 Total Deteksi: {vuln_count} kerentanan ditemukan
+
+"
+                self.output_area.setText(summary + output)
+            except Exception:
+                self.output_area.setText(output)
         except subprocess.CalledProcessError as e:
             self.output_area.setText(f"[!] Error:\n{e.output}")
         except FileNotFoundError:
