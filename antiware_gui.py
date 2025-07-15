@@ -29,8 +29,8 @@ class AntiWareGUI(QWidget):
         layout.addWidget(QLabel("Target URL:"))
         layout.addWidget(self.url_input)
 
-        self.scan_button = QPushButton("Scan Website & Vulnerability", self)
-        self.scan_button.clicked.connect(self.run_scan)
+        self.scan_button = QPushButton("Track IP Penyerang & Kriptografi", self)
+        self.scan_button.clicked.connect(self.run_ip_crypto_analysis)
         layout.addWidget(self.scan_button)
 
         self.malware_button = QPushButton("Deteksi Ransomware / Malware", self)
@@ -51,22 +51,22 @@ class AntiWareGUI(QWidget):
 
         self.setLayout(layout)
 
-    def run_scan(self):
+    def run_ip_crypto_analysis(self):
         url = self.url_input.text().strip()
         if not url:
             self.output_area.setText("⚠️ Masukkan URL terlebih dahulu.")
             return
         try:
             output = subprocess.check_output(
-                ['python3', 'antiware.py', url],
+                ['python3', 'ip_crypto_tracker.py', url],
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            self.render_output(output, scan_type="basic")
+            self.render_output(output, scan_type="ip_crypto")
         except subprocess.CalledProcessError as e:
-            self.output_area.setText(f"[!] Error:\n{e.output}")
+            self.output_area.setText(f"[!] Error saat analisis IP/Kriptografi:\n{e.output}")
         except FileNotFoundError:
-            self.output_area.setText("❌ File 'antiware.py' tidak ditemukan di direktori saat ini.")
+            self.output_area.setText("❌ File 'ip_crypto_tracker.py' tidak ditemukan.")
 
     def run_malware_scan(self):
         try:
@@ -102,7 +102,6 @@ class AntiWareGUI(QWidget):
         file_path, _ = QFileDialog.getOpenFileName(self, "Pilih file untuk discan", "", "All Files (*)")
         if file_path:
             self.output_area.setText(f"📂 File terpilih: {file_path}\n\n🔎 (simulasi) CVE Lookup untuk file ini belum diimplementasikan secara penuh.")
-            # Placeholder: Tambahkan analisis file (misal integrasi ke VirusTotal atau analisis konten lokal)
 
     def render_output(self, output, scan_type):
         try:
