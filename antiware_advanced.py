@@ -7,13 +7,14 @@ Mendeteksi:
 - Script Berbahaya dari CDN
 - Header & Cookie Security
 - Fingerprint Teknologi & Korelasi CVE
+- Static Analysis pada JavaScript eksternal
 """
 
 import requests
 import re
 import json
 import sys
-from urllib.parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode, urljoin
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 
@@ -107,6 +108,43 @@ def fingerprint_cms(resp):
         })
     return findings
 
+# === 6. Static JS Analyzer ===
+def scan_javascript_static(base_url):
+    resp = fetch(base_url)
+    if not resp:
+        return []
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    findings = []
+    for script in soup.find_all('script', src=True):
+        js_url = urljoin(base_url, script['src'])
+        js_resp = fetch(js_url)
+        if not js_resp or js_resp.status_code != 200:
+            continue
+        lines = js_resp.text.split('\n')
+        for i, line in enumerate(lines):
+            if re.search(r'eval\s*\(', line):
+                findings.append({
+                    'type': 'Insecure JavaScript Eval',
+                    'evidence': 'eval() digunakan',
+                    'location': f'{js_url} line {i+1}',
+                    'severity': 'high'
+                })
+            elif re.search(r'\.innerHTML\s*=\s*', line):
+                findings.append({
+                    'type': 'XSS via innerHTML',
+                    'evidence': 'innerHTML assignment',
+                    'location': f'{js_url} line {i+1}',
+                    'severity': 'high'
+                })
+            elif re.search(r'document\.write\s*\(', line):
+                findings.append({
+                    'type': 'Document.write Usage',
+                    'evidence': 'document.write digunakan',
+                    'location': f'{js_url} line {i+1}',
+                    'severity': 'medium'
+                })
+    return findings
+
 # === Main Scanner ===
 def scan(url):
     report = {
@@ -127,6 +165,7 @@ def scan(url):
     report['vulnerabilities'].extend(check_cdn_js(url))
     report['vulnerabilities'].extend(check_headers(resp))
     report['vulnerabilities'].extend(fingerprint_cms(resp))
+    report['vulnerabilities'].extend(scan_javascript_static(url))
 
     return report
 
