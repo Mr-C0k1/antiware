@@ -74,9 +74,13 @@ class AntiWareGUI(QWidget):
             self.output_area.setText("❌ File 'aware.py' tidak ditemukan. Pastikan file tersebut ada.")
 
     def run_deep_analysis(self):
+        url = self.url_input.text().strip()
+        if not url:
+            self.output_area.setText("⚠️ Masukkan URL terlebih dahulu.")
+            return
         try:
             output = subprocess.check_output(
-                ['python3', 'antiware_advanced.py'],
+                ['python3', 'antiware_advanced.py', url],
                 stderr=subprocess.STDOUT,
                 text=True
             )
