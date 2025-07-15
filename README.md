@@ -79,7 +79,7 @@ Time: 2025-07-14T12:00:00Z
 - Modul: `requests`, `flask`, `bs4`, `PIL`, `dotenv`
 ```bash
 pip install -r requirements.txt --break-system-pakages ( jika pip anda bermasalah di GNU kali linux atau ubuntu. )
-pip install requests beautifulsoup4 python-dotenv flask python-telegram-bot Pillow
+pip install requests beautifulsoup4 python-dotenv flask python-telegram-bot Pillow --break-system-packages
 
 #sistematika instalasi github debian
 git clone https://github.com/Mr-C0k1/antiware.git
