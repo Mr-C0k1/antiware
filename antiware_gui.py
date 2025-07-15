@@ -15,6 +15,8 @@ import subprocess
 import sys
 import os
 import json
+import re
+import requests
 
 class AntiWareGUI(QWidget):
     def __init__(self):
@@ -51,22 +53,54 @@ class AntiWareGUI(QWidget):
 
         self.setLayout(layout)
 
+    def scan_ransomware_site(self, url):
+        result = {
+            "url": url,
+            "attacker_ip": None,
+            "encryption_algorithm": None,
+            "ransom_key_hint": None,
+            "suspicious_file": None
+        }
+        try:
+            response = requests.get(url, timeout=10)
+            html = response.text
+
+            # Cek alamat IP penyerang dari ransom note (simulasi)
+            ip_match = re.findall(r'(?:https?://)?(\d{1,3}(?:\.\d{1,3}){3})', html)
+            if ip_match:
+                result['attacker_ip'] = ip_match[0]
+
+            # Deteksi algoritma enkripsi yang digunakan
+            if "AES-256" in html:
+                result['encryption_algorithm'] = "AES-256"
+            elif "RSA" in html:
+                result['encryption_algorithm'] = "RSA"
+
+            # Petunjuk kunci ransom
+            ransom_hint = re.findall(r'key=[a-zA-Z0-9+/=]{32,}', html)
+            if ransom_hint:
+                result['ransom_key_hint'] = ransom_hint[0]
+
+            # Deteksi file mencurigakan
+            if "ransom_note.txt" in html or "decrypt_instructions.html" in html:
+                result['suspicious_file'] = "ransom_note.txt"
+
+        except Exception as e:
+            result["error"] = str(e)
+
+        return result
+
     def run_ransomware_website_scan(self):
         url = self.url_input.text().strip()
         if not url:
             self.output_area.setText("⚠️ Masukkan URL terlebih dahulu.")
             return
         try:
-            output = subprocess.check_output(
-                ['python3', 'ransomware_webscan.py', url],
-                stderr=subprocess.STDOUT,
-                text=True
-            )
+            result = self.scan_ransomware_site(url)
+            output = json.dumps(result, indent=2)
             self.render_output(output, scan_type="ransomwareweb")
-        except subprocess.CalledProcessError as e:
-            self.output_area.setText(f"[!] Error saat scanning ransomware website:\n{e.output}")
-        except FileNotFoundError:
-            self.output_area.setText("❌ File 'ransomware_webscan.py' tidak ditemukan.")
+        except Exception as e:
+            self.output_area.setText(f"[!] Error saat scanning ransomware website:\n{str(e)}")
 
     def run_malware_scan(self):
         try:
@@ -112,12 +146,19 @@ class AntiWareGUI(QWidget):
                 ransom_key = parsed.get('ransom_key_hint', 'Tidak diketahui')
                 file_hint = parsed.get('suspicious_file', '-')
                 self.output_area.setText(
-                    f"🛡️ Hasil Deteksi Ransomware Website:\n\n"
-                    f"🔍 IP Penyerang: {ip}\n"
-                    f"🔐 Algoritma Kriptografi: {algo}\n"
-                    f"🧩 Petunjuk Kunci: {ransom_key}\n"
-                    f"📄 Lokasi File Terkait: {file_hint}\n"
-                )
+    f"🛡️ Hasil Deteksi Ransomware Website:
+
+"
+    f"🔍 IP Penyerang: {ip}
+"
+    f"🔐 Algoritma Kriptografi: {algo}
+"
+    f"🧩 Petunjuk Kunci: {ransom_key}
+"
+    f"📄 Lokasi File Terkait: {file_hint}
+"
+    + ("✅ Website tidak memiliki file ransomware!" if not ip and not ransom_key and not file_hint else "")
+)
             else:
                 vuln_list = parsed.get('vulnerabilities', [])
                 vuln_count = len(vuln_list)
