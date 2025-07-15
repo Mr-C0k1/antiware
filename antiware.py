@@ -267,14 +267,14 @@ def main():
     scanner = AntiWareScanner()
     all_results = []
 
-    if args.api:
+   if args.api:
     if args.api is not True:
         set_key(ENV_FILE, 'API_TOKEN', args.api)
         print(f'[✔] API Token set to {args.api}')
         load_dotenv(ENV_FILE, override=True)
         app.config['API_TOKEN'] = os.getenv('API_TOKEN')
+
     app.run(host='0.0.0.0', port=5000)
-    return
 
     if args.list:
         with open(args.list) as f:
