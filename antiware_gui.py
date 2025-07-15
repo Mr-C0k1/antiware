@@ -29,8 +29,8 @@ class AntiWareGUI(QWidget):
         layout.addWidget(QLabel("Target URL:"))
         layout.addWidget(self.url_input)
 
-        self.scan_button = QPushButton("Deteksi Ransomware & IP Penyerang", self)
-        self.scan_button.clicked.connect(self.run_ransomware_tracker)
+        self.scan_button = QPushButton("Scan Ransomware Website & Deteksi Kunci Enkripsi", self)
+        self.scan_button.clicked.connect(self.run_ransomware_website_scan)
         layout.addWidget(self.scan_button)
 
         self.malware_button = QPushButton("Deteksi Malware & Signature", self)
@@ -51,22 +51,22 @@ class AntiWareGUI(QWidget):
 
         self.setLayout(layout)
 
-    def run_ransomware_tracker(self):
+    def run_ransomware_website_scan(self):
         url = self.url_input.text().strip()
         if not url:
             self.output_area.setText("⚠️ Masukkan URL terlebih dahulu.")
             return
         try:
             output = subprocess.check_output(
-                ['python3', 'ransomware_tracker.py', url],
+                ['python3', 'ransomware_webscan.py', url],
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            self.render_output(output, scan_type="ransomware")
+            self.render_output(output, scan_type="ransomwareweb")
         except subprocess.CalledProcessError as e:
-            self.output_area.setText(f"[!] Error saat pelacakan ransomware:\n{e.output}")
+            self.output_area.setText(f"[!] Error saat scanning ransomware website:\n{e.output}")
         except FileNotFoundError:
-            self.output_area.setText("❌ File 'ransomware_tracker.py' tidak ditemukan.")
+            self.output_area.setText("❌ File 'ransomware_webscan.py' tidak ditemukan.")
 
     def run_malware_scan(self):
         try:
@@ -106,11 +106,18 @@ class AntiWareGUI(QWidget):
     def render_output(self, output, scan_type):
         try:
             parsed = json.loads(output)
-            if scan_type == "ransomware":
+            if scan_type == "ransomwareweb":
                 ip = parsed.get('attacker_ip', 'Tidak ditemukan')
                 algo = parsed.get('encryption_algorithm', 'Tidak terdeteksi')
                 ransom_key = parsed.get('ransom_key_hint', 'Tidak diketahui')
-                self.output_area.setText(f"🛡️ Hasil Deteksi Ransomware:\n\n🔍 IP Penyerang: {ip}\n🔐 Algoritma Kriptografi: {algo}\n🧩 Petunjuk Kunci: {ransom_key}\n")
+                file_hint = parsed.get('suspicious_file', '-')
+                self.output_area.setText(
+                    f"🛡️ Hasil Deteksi Ransomware Website:\n\n"
+                    f"🔍 IP Penyerang: {ip}\n"
+                    f"🔐 Algoritma Kriptografi: {algo}\n"
+                    f"🧩 Petunjuk Kunci: {ransom_key}\n"
+                    f"📄 Lokasi File Terkait: {file_hint}\n"
+                )
             else:
                 vuln_list = parsed.get('vulnerabilities', [])
                 vuln_count = len(vuln_list)
