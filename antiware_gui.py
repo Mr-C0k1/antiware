@@ -29,11 +29,11 @@ class AntiWareGUI(QWidget):
         layout.addWidget(QLabel("Target URL:"))
         layout.addWidget(self.url_input)
 
-        self.scan_button = QPushButton("Track IP Penyerang & Kriptografi", self)
-        self.scan_button.clicked.connect(self.run_ip_crypto_analysis)
+        self.scan_button = QPushButton("Deteksi Ransomware & IP Penyerang", self)
+        self.scan_button.clicked.connect(self.run_ransomware_tracker)
         layout.addWidget(self.scan_button)
 
-        self.malware_button = QPushButton("Deteksi Ransomware / Malware", self)
+        self.malware_button = QPushButton("Deteksi Malware & Signature", self)
         self.malware_button.clicked.connect(self.run_malware_scan)
         layout.addWidget(self.malware_button)
 
@@ -51,22 +51,22 @@ class AntiWareGUI(QWidget):
 
         self.setLayout(layout)
 
-    def run_ip_crypto_analysis(self):
+    def run_ransomware_tracker(self):
         url = self.url_input.text().strip()
         if not url:
             self.output_area.setText("⚠️ Masukkan URL terlebih dahulu.")
             return
         try:
             output = subprocess.check_output(
-                ['python3', 'ip_crypto_tracker.py', url],
+                ['python3', 'ransomware_tracker.py', url],
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            self.render_output(output, scan_type="ip_crypto")
+            self.render_output(output, scan_type="ransomware")
         except subprocess.CalledProcessError as e:
-            self.output_area.setText(f"[!] Error saat analisis IP/Kriptografi:\n{e.output}")
+            self.output_area.setText(f"[!] Error saat pelacakan ransomware:\n{e.output}")
         except FileNotFoundError:
-            self.output_area.setText("❌ File 'ip_crypto_tracker.py' tidak ditemukan.")
+            self.output_area.setText("❌ File 'ransomware_tracker.py' tidak ditemukan.")
 
     def run_malware_scan(self):
         try:
@@ -106,17 +106,23 @@ class AntiWareGUI(QWidget):
     def render_output(self, output, scan_type):
         try:
             parsed = json.loads(output)
-            vuln_list = parsed.get('vulnerabilities', [])
-            vuln_count = len(vuln_list)
-            summary = f"✅ Total Deteksi: {vuln_count} kerentanan ditemukan\n\n"
-            detail = ""
-            for vuln in vuln_list:
-                severity = vuln.get("severity", "unknown").lower()
-                color = {
-                    "low": "🟢", "medium": "🟡", "high": "🔴"
-                }.get(severity, "⚪")
-                detail += f"{color} [{severity.upper()}] {vuln.get('type')}\n - {vuln.get('description')}\n\n"
-            self.output_area.setText(summary + detail)
+            if scan_type == "ransomware":
+                ip = parsed.get('attacker_ip', 'Tidak ditemukan')
+                algo = parsed.get('encryption_algorithm', 'Tidak terdeteksi')
+                ransom_key = parsed.get('ransom_key_hint', 'Tidak diketahui')
+                self.output_area.setText(f"🛡️ Hasil Deteksi Ransomware:\n\n🔍 IP Penyerang: {ip}\n🔐 Algoritma Kriptografi: {algo}\n🧩 Petunjuk Kunci: {ransom_key}\n")
+            else:
+                vuln_list = parsed.get('vulnerabilities', [])
+                vuln_count = len(vuln_list)
+                summary = f"✅ Total Deteksi: {vuln_count} kerentanan ditemukan\n\n"
+                detail = ""
+                for vuln in vuln_list:
+                    severity = vuln.get("severity", "unknown").lower()
+                    color = {
+                        "low": "🟢", "medium": "🟡", "high": "🔴"
+                    }.get(severity, "⚪")
+                    detail += f"{color} [{severity.upper()}] {vuln.get('type')}\n - {vuln.get('description')}\n\n"
+                self.output_area.setText(summary + detail)
         except Exception:
             self.output_area.setText(output)
 
