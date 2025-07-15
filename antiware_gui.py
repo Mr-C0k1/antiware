@@ -146,19 +146,12 @@ class AntiWareGUI(QWidget):
                 ransom_key = parsed.get('ransom_key_hint', 'Tidak diketahui')
                 file_hint = parsed.get('suspicious_file', '-')
                 self.output_area.setText(
-    f"🛡️ Hasil Deteksi Ransomware Website:
-
-"
-    f"🔍 IP Penyerang: {ip}
-"
-    f"🔐 Algoritma Kriptografi: {algo}
-"
-    f"🧩 Petunjuk Kunci: {ransom_key}
-"
-    f"📄 Lokasi File Terkait: {file_hint}
-"
-    + ("✅ Website tidak memiliki file ransomware!" if not ip and not ransom_key and not file_hint else "")
-)
+                    f"🛡️ Hasil Deteksi Ransomware Website:\n\n"
+                    f"🔍 IP Penyerang: {ip}\n"
+                    f"🔐 Algoritma Kriptografi: {algo}\n"
+                    f"🧩 Petunjuk Kunci: {ransom_key}\n"
+                    f"📄 Lokasi File Terkait: {file_hint}\n"
+                )
             else:
                 vuln_list = parsed.get('vulnerabilities', [])
                 vuln_count = len(vuln_list)
