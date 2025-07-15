@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AntiWare - Website Threat & Malware Scanner (CLI & API)
+GreenWare - Website Threat & Malware Scanner (CLI & API)
 Versi CLI lengkap dan bisa dieksekusi seperti tool di Kali Linux
 """
 
@@ -21,50 +21,29 @@ import base64
 
 # Load dan buat konfigurasi
 ENV_FILE = '.env'
-load_dotenv(ENV_FILE)
-
 if not os.path.exists(ENV_FILE):
     with open(ENV_FILE, 'w') as f:
         f.write('API_TOKEN=changeme\nVT_API_KEY=your_virustotal_key\nREPORT_DASHBOARD=https://dashboard.example.com/api/report\n')
 
+load_dotenv(ENV_FILE)
+
 # Setup logging
 logging.basicConfig(
-    filename='antiware_scanner.log',
+    filename='greenware_scanner.log',
     filemode='a',
     format='%(asctime)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
-REPORT_DIR = 'antiware_reports'
+REPORT_DIR = 'greenware_reports'
 os.makedirs(REPORT_DIR, exist_ok=True)
-
-# Tampilkan logo saat dijalankan
-def tampilkan_logo():
-    try:
-        from io import BytesIO
-        logo_path = os.path.join(os.path.dirname(__file__), 'antiware_logo.png')
-        if not os.path.exists(logo_path):
-            print("[!] Gambar logo tidak ditemukan: antiware_logo.png")
-            return
-        img = Image.open(logo_path)
-        img = img.convert('L').resize((60, 30))
-        pixels = img.load()
-        for y in range(img.size[1]):
-            for x in range(img.size[0]):
-                brightness = pixels[x, y]
-                char = ' ' if brightness > 128 else '#'
-                print(char, end='')
-            print()
-        print("\nANTIWARE - Website Threat Scanner\n")
-    except Exception as e:
-        print(f"[!] Gagal menampilkan logo: {e}")
 
 app = Flask(__name__)
 app.config['API_TOKEN'] = os.getenv('API_TOKEN', 'changeme')
 app.config['VT_API_KEY'] = os.getenv('VT_API_KEY', 'your_virustotal_key')
 app.config['REPORT_DASHBOARD'] = os.getenv('REPORT_DASHBOARD', 'https://dashboard.example.com/api/report')
 
-class AntiWareScanner:
+class GreenWareScanner:
     def __init__(self):
         self.threat_patterns = [
             {
@@ -145,29 +124,6 @@ class AntiWareScanner:
         self.send_to_dashboard(result)
         return result
 
-    def scan_file_content(self, filename):
-        result = {
-            'filename': filename,
-            'scan_time': datetime.now(timezone.utc).isoformat(),
-            'vulnerabilities': []
-        }
-        try:
-            with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-                for rule in self.threat_patterns:
-                    if re.search(rule['pattern'], content, re.IGNORECASE):
-                        result['vulnerabilities'].append({
-                            'type': rule['type'],
-                            'cve': rule['cve'],
-                            'description': rule['description'],
-                            'solution': rule['solution'],
-                            'detected_in_file': filename
-                        })
-        except Exception as e:
-            result['error'] = str(e)
-        self.send_to_dashboard(result)
-        return result
-
     def virustotal_check(self, url, result):
         api_key = app.config['VT_API_KEY']
         if not api_key or api_key == 'your_virustotal_key':
@@ -195,20 +151,12 @@ class AntiWareScanner:
             logging.error(f"[Dashboard] {e}")
 
     def save_json_report(self, result):
-        name = result.get('url') or result.get('filename')
+        name = result.get('url')
         identifier = urlparse(name).netloc.replace(':', '_') if 'url' in result else os.path.basename(name)
         fname = os.path.join(REPORT_DIR, f"{identifier}.json")
         with open(fname, 'w') as f:
             json.dump(result, f, indent=2)
         logging.info(f"[Report] Saved to {fname}")
-
-    def generate_text_report(self, result):
-        lines = [f"Scan result for {result.get('url', result.get('filename'))}:", f"Time: {result['scan_time']}"]
-        for v in result['vulnerabilities']:
-            lines.append(f"- {v['type']} (CVE: {v['cve']})")
-            lines.append(f"  Description: {v['description']}")
-            lines.append(f"  Solution: {v['solution']}")
-        return '\n'.join(lines)
 
 @app.route('/api/scan', methods=['POST'])
 def api_scan():
@@ -219,84 +167,33 @@ def api_scan():
     url = data.get('url')
     if not url:
         return jsonify({'error': 'Missing URL'}), 400
-    scanner = AntiWareScanner()
+    scanner = GreenWareScanner()
     result = scanner.scan_url(url)
     return jsonify(result)
 
-@app.route('/api/scan_mass', methods=['POST'])
-def api_scan_mass():
-    token = request.headers.get('Authorization')
-    if not token or token != f"Bearer {app.config['API_TOKEN']}":
-        return jsonify({'error': 'Unauthorized'}), 401
-    data = request.get_json()
-    urls = data.get('urls', [])
-    scanner = AntiWareScanner()
-    results = [scanner.scan_url(url) for url in urls]
-    return jsonify(results)
-
 def main():
-    tampilkan_logo()
-
-    parser = argparse.ArgumentParser(description='AntiWare Website Threat Detector')
+    parser = argparse.ArgumentParser(description='GreenWare Website Threat Detector')
     parser.add_argument('url', nargs='?', help='Target URL to scan')
-    parser.add_argument('-l', '--list', help='File list of URLs to scan')
-    parser.add_argument('-f', '--file', help='Scan local file content')
-    parser.add_argument('-o', '--output', help='Save result to .txt')
-    parser.add_argument('--api', nargs='?', const=True, help='Run as API server (optionally with token)')
-    parser.add_argument('--set-token', help='Set API Token')
-    parser.add_argument('--set-vtkey', help='Set VirusTotal API Key')
-    parser.add_argument('--set-dashboard', help='Set Dashboard Endpoint')
-
+    parser.add_argument('--api', nargs='?', const=True, help='Run as API server (optional token)')
     args = parser.parse_args()
 
-    if args.set_token:
-        set_key(ENV_FILE, 'API_TOKEN', args.set_token)
-        print('[✔] API Token saved to .env')
-    if args.set_vtkey:
-        set_key(ENV_FILE, 'VT_API_KEY', args.set_vtkey)
-        print('[✔] VirusTotal API Key saved to .env')
-    if args.set_dashboard:
-        set_key(ENV_FILE, 'REPORT_DASHBOARD', args.set_dashboard)
-        print('[✔] Dashboard Endpoint saved to .env')
-
-    load_dotenv(ENV_FILE, override=True)
-    app.config['API_TOKEN'] = os.getenv('API_TOKEN')
-    app.config['VT_API_KEY'] = os.getenv('VT_API_KEY')
-    app.config['REPORT_DASHBOARD'] = os.getenv('REPORT_DASHBOARD')
-
-    scanner = AntiWareScanner()
-    all_results = []
-
-   if args.api:
-    if args.api is not True:
-        set_key(ENV_FILE, 'API_TOKEN', args.api)
-        print(f'[✔] API Token set to {args.api}')
-        load_dotenv(ENV_FILE, override=True)
-        app.config['API_TOKEN'] = os.getenv('API_TOKEN')
-
-    app.run(host='0.0.0.0', port=5000)
-
-    if args.list:
-        with open(args.list) as f:
-            urls = [line.strip() for line in f if line.strip()]
-            all_results = [scanner.scan_url(url) for url in urls]
-    elif args.file:
-        result = scanner.scan_file_content(args.file)
-        all_results = [result]
-    elif args.url:
-        result = scanner.scan_url(args.url)
-        all_results = [result]
-    else:
-        print("[!] No input provided.")
+    if args.api:
+        if args.api is not True:
+            set_key(ENV_FILE, 'API_TOKEN', args.api)
+            print(f'[✔] API Token set to {args.api}')
+            load_dotenv(ENV_FILE, override=True)
+            app.config['API_TOKEN'] = os.getenv('API_TOKEN')
+        print("[✓] Running GreenWare API server on http://0.0.0.0:5000")
+        app.run(host='0.0.0.0', port=5000)
         return
 
-    for result in all_results:
-        report = scanner.generate_text_report(result)
-        if args.output:
-            with open(args.output, 'a') as f:
-                f.write(report + '\n' + '='*40 + '\n')
-        else:
-            print(report)
+    if not args.url:
+        print("[!] Target URL is required.")
+        return
+
+    scanner = GreenWareScanner()
+    result = scanner.scan_url(args.url)
+    print(json.dumps(result, indent=2))
 
 if __name__ == '__main__':
     main()
