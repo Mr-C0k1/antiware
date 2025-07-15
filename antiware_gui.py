@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
 import subprocess
 import sys
 import os
+import json
 
 class AntiWareGUI(QWidget):
     def __init__(self):
@@ -54,12 +55,10 @@ class AntiWareGUI(QWidget):
                 stderr=subprocess.STDOUT,
                 text=True
             )
-                        try:
+            try:
                 parsed = json.loads(output)
                 vuln_count = len(parsed.get('vulnerabilities', []))
-                summary = f"🔍 Total Deteksi: {vuln_count} kerentanan ditemukan
-
-"
+                summary = f"🔍 Total Deteksi: {vuln_count} kerentanan ditemukan\n\n"
                 self.output_area.setText(summary + output)
             except Exception:
                 self.output_area.setText(output)
@@ -92,7 +91,13 @@ class AntiWareGUI(QWidget):
                 stderr=subprocess.STDOUT,
                 text=True
             )
-            self.output_area.setText("🔬 Hasil Deep Analysis (Valid Virus/Vuln):\n\n" + output)
+            try:
+                parsed = json.loads(output)
+                vuln_count = len(parsed.get('vulnerabilities', []))
+                summary = f"🔬 Total Deteksi Advanced: {vuln_count}\n\n"
+                self.output_area.setText(summary + output)
+            except Exception:
+                self.output_area.setText(output)
         except subprocess.CalledProcessError as e:
             self.output_area.setText(f"[!] Error saat deep analysis:\n{e.output}")
         except FileNotFoundError:
