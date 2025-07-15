@@ -14,7 +14,7 @@ import re
 import json
 import sys
 from urllib.parse import urlparse, urlencode
-from datetime import datetime
+from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 
 # === Helper ===
@@ -40,6 +40,7 @@ def check_rce(url):
                     'type': 'Remote Code Execution',
                     'endpoint': crafted,
                     'evidence': p,
+                    'location': 'parameter ' + param,
                     'severity': 'critical'
                 })
     return rce_findings
@@ -55,6 +56,7 @@ def check_xss(url):
             'type': 'Reflected XSS',
             'endpoint': test_url,
             'evidence': 'payload reflected in response',
+            'location': 'query parameter xss',
             'severity': 'high'
         }]
     return []
@@ -71,6 +73,7 @@ def check_cdn_js(url):
                 findings.append({
                     'type': 'Suspicious External JS',
                     'evidence': src,
+                    'location': 'script tag src attribute',
                     'severity': 'high'
                 })
     return findings
@@ -81,13 +84,13 @@ def check_headers(resp):
     headers = resp.headers
     set_cookie = headers.get('Set-Cookie', '')
     if 'HttpOnly' not in set_cookie:
-        issues.append({'type': 'Insecure Cookie', 'evidence': 'Missing HttpOnly', 'severity': 'medium'})
+        issues.append({'type': 'Insecure Cookie', 'evidence': 'Missing HttpOnly', 'location': 'Set-Cookie header', 'severity': 'medium'})
     if 'Secure' not in set_cookie:
-        issues.append({'type': 'Insecure Cookie', 'evidence': 'Missing Secure', 'severity': 'medium'})
+        issues.append({'type': 'Insecure Cookie', 'evidence': 'Missing Secure', 'location': 'Set-Cookie header', 'severity': 'medium'})
     if 'Content-Security-Policy' not in headers:
-        issues.append({'type': 'Missing Header', 'evidence': 'Content-Security-Policy not set', 'severity': 'medium'})
+        issues.append({'type': 'Missing Header', 'evidence': 'Content-Security-Policy not set', 'location': 'HTTP response headers', 'severity': 'medium'})
     if 'X-Frame-Options' not in headers:
-        issues.append({'type': 'Missing Header', 'evidence': 'X-Frame-Options not set', 'severity': 'low'})
+        issues.append({'type': 'Missing Header', 'evidence': 'X-Frame-Options not set', 'location': 'HTTP response headers', 'severity': 'low'})
     return issues
 
 # === 5. Teknologi & Versi (Dummy Fingerprint) ===
@@ -98,6 +101,7 @@ def fingerprint_cms(resp):
         findings.append({
             'type': 'CMS Detected',
             'evidence': 'WordPress Detected',
+            'location': 'HTML body contains wp-content path',
             'cve_refs': ['CVE-2022-21661'],
             'severity': 'medium'
         })
@@ -107,7 +111,7 @@ def fingerprint_cms(resp):
 def scan(url):
     report = {
         'url': url,
-        'scan_time': datetime.utcnow().isoformat() + 'Z',
+        'scan_time': datetime.now(timezone.utc).isoformat(),
         'vulnerabilities': []
     }
 
