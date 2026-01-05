@@ -151,6 +151,8 @@ Memberikan laporan langsung ke dashboard atau terminal
 
 Meningkatkan kewaspadaan server web terhadap serangan kriptografi ilegal
 
+# DISCLAMER
+GUNAKAN TOOLS INI DENGAN BIJAK, DEVELOPER TIDAK BERTANGGUNG JAWAB APABILA DI LAKUKAN AKTIVITAS ILEGAL YANG BERSANGKUTAN DENGAN HUKUM
 
 
 
