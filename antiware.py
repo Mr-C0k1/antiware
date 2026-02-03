@@ -1,153 +1,141 @@
 #!/usr/bin/env python3
-"""
-AntiWare - Website Threat & Malware Scanner (CLI & API)
-Versi CLI lengkap dan bisa dieksekusi seperti tool di Kali Linux
-"""
-
 import re
 import requests
+import random
+import time
 import argparse
-import os
 import json
+import sys
+import threading
+import signal
+from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
-from urllib.parse import urlparse, urljoin
-import logging
-from flask import Flask, request, jsonify
-from dotenv import load_dotenv, set_key
-from PIL import Image
-import telegram
 
-# Load konfigurasi dari .env
-ENV_FILE = '.env'
-load_dotenv(ENV_FILE)
+# --- KONFIGURASI GLOBAL ---
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/119.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) Chrome/118.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/537.36"
+]
 
-if not os.path.exists(ENV_FILE):
-    with open(ENV_FILE, 'w') as f:
-        f.write('API_TOKEN=changeme\nVT_API_KEY=your_virustotal_key\nREPORT_DASHBOARD=https://dashboard.example.com/api/report\nTELEGRAM_TOKEN=your_bot_token\nTELEGRAM_CHAT_ID=your_chat_id\n')
+FUZZ_WORDLIST = [
+    ".env", ".git/config", "backup.sql", "config.php", "phpinfo.php", 
+    "node_modules", ".vscode/sftp.json", "setup.zip", ".htaccess", "db.sql"
+]
 
-# Logging
-logging.basicConfig(
-    filename='antiware_scanner.log',
-    filemode='a',
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+class AntiWareEngine:
+    def __init__(self, target, threads, stealth, vt_key):
+        self.target = target.rstrip('/')
+        self.threads = threads
+        self.stealth = stealth
+        self.vt_key = vt_key
+        self.delay = 1.0 if stealth else 0.1
+        self.found_issues = []
+        self.discovered_assets = {self.target}
+        self.is_running = True
+        self.lock = threading.Lock()
+        self.session = requests.Session()
 
-REPORT_DIR = 'antiware_reports'
-os.makedirs(REPORT_DIR, exist_ok=True)
+    # --- HANDLER EXIT (CTRL+C) ---
+    def stop_engine(self):
+        print(f"\n\n[!] Menangkap sinyal interupsi. Menghentikan aktivitas...")
+        self.is_running = False
 
-# Flask app untuk API
-app = Flask(__name__)
-app.config['API_TOKEN'] = os.getenv('API_TOKEN', 'changeme')
-app.config['VT_API_KEY'] = os.getenv('VT_API_KEY', 'your_virustotal_key')
-app.config['REPORT_DASHBOARD'] = os.getenv('REPORT_DASHBOARD', 'https://dashboard.example.com/api/report')
-app.config['TELEGRAM_TOKEN'] = os.getenv('TELEGRAM_TOKEN')
-app.config['TELEGRAM_CHAT_ID'] = os.getenv('TELEGRAM_CHAT_ID')
+    def get_headers(self):
+        return {'User-Agent': random.choice(USER_AGENTS), 'Referer': self.target}
 
-# Logo
-
-def tampilkan_logo():
-    print("""
- █████╗ ███╗   ██╗████████╗██╗██╗    ██╗ █████╗ ██████╗ ███████╗
-██╔══██╗████╗  ██║╚══██╔══╝██║██║    ██║██╔══██╗██╔══██╗██╔════╝
-███████║██╔██╗ ██║   ██║   ██║██║ █╗ ██║███████║██████╔╝█████╗  
-██╔══██║██║╚██╗██║   ██║   ██║██║███╗██║██╔══██║██╔═══╝ ██╔══╝  
-██║  ██║██║ ╚████║   ██║   ██║╚███╔███╔╝██║  ██║██║     ███████╗
-╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚═╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝     ╚══════╝
-    Website Threat & Malware Scanner
-    """)
-
-class AntiWareScanner:
-    def __init__(self):
-        self.threat_patterns = [
-            {
-                'type': 'Malicious Script',
-                'pattern': r'<script[^>]*src=[\"\'](http[^\"\']*?(obfuscated|malicious)[^\"\']*)[\"\']',
-                'description': 'Script mencurigakan ditemukan dalam HTML',
-                'solution': 'Hapus script mencurigakan, update plugin'
-            },
-            {
-                'type': 'Shell Upload',
-                'pattern': r'(r57|c99|cmd)\\.php',
-                'description': 'Shell backdoor ditemukan',
-                'solution': 'Hapus file shell, audit permission direktori upload'
-            }
-        ]
-
-    def scan_url(self, url):
-        result = {
-            'url': url,
-            'scan_time': datetime.now(timezone.utc).isoformat(),
-            'vulnerabilities': []
-        }
+    def safe_request(self, url):
+        if not self.is_running: return None
         try:
-            r = requests.get(url, timeout=10)
-            html = r.text
-            soup = BeautifulSoup(html, 'html.parser')
+            if self.stealth:
+                time.sleep(random.uniform(self.delay, self.delay + 1))
+            
+            resp = self.session.get(url, headers=self.get_headers(), timeout=10)
+            
+            # Adaptive Rate Limit Detection
+            if resp.status_code in [429, 403] and self.stealth:
+                print(f"    [!] Limit terdeteksi di {url}. Cooldown...")
+                self.delay += 2.0
+                time.sleep(5)
+                return self.safe_request(url)
+            
+            return resp
+        except Exception:
+            return None
 
-            for rule in self.threat_patterns:
-                matches = re.finditer(rule['pattern'], html, re.IGNORECASE)
-                for match in matches:
-                    location = match.group(1) if match.groups() else 'inline script'
-                    finding = {
-                        'type': rule['type'],
-                        'description': rule['description'],
-                        'solution': rule['solution'],
-                        'location': location
-                    }
-                    result['vulnerabilities'].append(finding)
-                    self.send_telegram_alert(finding, url)
-        except Exception as e:
-            result['error'] = str(e)
-        self.save_report(result)
-        return result
-
-    def save_report(self, data):
-        filename = os.path.join(REPORT_DIR, f"report_{datetime.now().strftime('%Y%m%d%H%M%S')}.json")
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=2)
-        logging.info(f"Report saved to {filename}")
-
-    def send_telegram_alert(self, finding, target):
-        if not app.config['TELEGRAM_TOKEN'] or not app.config['TELEGRAM_CHAT_ID']:
-            return
+    # --- MODULE: VIRUSTOTAL ---
+    def check_vt(self, url):
+        if not self.vt_key: return "N/A"
+        headers = {"x-apikey": self.vt_key}
         try:
-            bot = telegram.Bot(token=app.config['TELEGRAM_TOKEN'])
-            message = f"⚠️ *Vulnerability Detected*\n\nURL: {target}\nType: {finding['type']}\nLocation: {finding['location']}\nDescription: {finding['description']}\nSolution: {finding['solution']}"
-            bot.send_message(chat_id=app.config['TELEGRAM_CHAT_ID'], text=message, parse_mode=telegram.constants.ParseMode.MARKDOWN)
-        except Exception as e:
-            logging.error(f"Telegram error: {e}")
+            # Menggunakan endpoint v3 untuk URL analysis
+            api_url = "https://www.virustotal.com/api/v3/urls"
+            res = requests.post(api_url, data={"url": url}, headers=headers, timeout=10)
+            stats = res.json()['data']['attributes']['last_analysis_stats']
+            return f"Malicious: {stats.get('malicious', 0)}"
+        except:
+            return "Error/Quota"
 
-# API endpoint
-@app.route('/api/scan', methods=['POST'])
-def api_scan():
-    token = request.headers.get('Authorization')
-    if token != f"Bearer {app.config['API_TOKEN']}":
-        return jsonify({'error': 'Unauthorized'}), 401
-    url = request.json.get('url')
-    scanner = AntiWareScanner()
-    result = scanner.scan_url(url)
-    return jsonify(result)
+    # --- MODULE: FUZZER ---
+    def fuzz_path(self, path):
+        if not self.is_running: return
+        full_url = f"{self.target}/{path}"
+        resp = self.safe_request(full_url)
+        if resp and resp.status_code == 200:
+            with self.lock:
+                print(f"    [!!!] SENSITIF DITEMUKAN: {full_url}")
+                self.found_issues.append({"type": "Fuzz Discovery", "url": full_url})
 
+    # --- CORE ENGINE ---
+    def run_scan(self):
+        print(f"[*] Memulai AntiWare Pro pada: {self.target}")
+        print(f"[*] Konfigurasi: Threads={self.threads}, Stealth={self.stealth}")
+        print("[*] Tekan CTRL+C untuk menghentikan paksa dan melihat laporan sementara.\n")
+
+        # 1. Fuzzing Module
+        print("[+] Tahap 1: Menjalankan Stealth Fuzzer...")
+        with ThreadPoolExecutor(max_workers=self.threads) as executor:
+            executor.map(self.fuzz_path, FUZZ_WORDLIST)
+
+        # 2. VirusTotal Check pada Target Utama
+        if self.vt_key:
+            print("[+] Tahap 2: Mengecek Reputasi VirusTotal...")
+            vt_res = self.check_vt(self.target)
+            print(f"    [-] Hasil VT: {vt_res}")
+
+        self.generate_report()
+
+    def generate_report(self):
+        print("\n" + "="*40)
+        print("         LAPORAN SCAN ANTIWARE")
+        print("="*40)
+        print(f"Target: {self.target}")
+        print(f"Total Temuan: {len(self.found_issues)}")
+        for issue in self.found_issues:
+            print(f"- [{issue['type']}] {issue['url']}")
+        print("="*40)
+
+# --- CLI HANDLER ---
 def main():
-    tampilkan_logo()
-    parser = argparse.ArgumentParser(description='AntiWare - Web Threat Scanner')
-    parser.add_argument('url', nargs='?', help='URL yang akan discan')
-    parser.add_argument('--api', action='store_true', help='Jalankan sebagai REST API')
+    parser = argparse.ArgumentParser(
+        description='AntiWare Pro - Engineering Stealth Toolkit',
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument('url', help='URL Target (https://site.com)')
+    parser.add_argument('--stealth', action='store_true', help='Aktifkan Adaptive Rate Limiting')
+    parser.add_argument('--fuzz', action='store_true', help='Jalankan Fuzzer file sensitif')
+    parser.add_argument('--threads', type=int, default=3, help='Jumlah Thread')
+    parser.add_argument('--vt', metavar='KEY', help='VirusTotal API Key')
+
     args = parser.parse_args()
 
-    if args.api:
-        app.run(host='0.0.0.0', port=5000)
-        return
+    engine = AntiWareEngine(args.url, args.threads, args.stealth, args.vt)
 
-    if not args.url:
-        print("[!] URL tidak diberikan.")
-        return
+    # Tangkap CTRL+C (signal.SIGINT)
+    signal.signal(signal.SIGINT, lambda sig, frame: engine.stop_engine() or sys.exit(0))
 
-    scanner = AntiWareScanner()
-    result = scanner.scan_url(args.url)
-    print(json.dumps(result, indent=2))
+    engine.run_scan()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
