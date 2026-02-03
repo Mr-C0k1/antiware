@@ -1,171 +1,170 @@
-#!/usr/bin/env python3
-"""
-AntiWare GUI - Antarmuka Grafis untuk Website Threat Scanner
-Mendukung deteksi Ransomware, Malware, Website Vulnerability, dan Valid Virus Scanner
-Dengan indikator warna tingkat risiko dan CVE lookup
-"""
-
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout,
-    QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog
-)
-from PyQt5.QtGui import QTextCharFormat, QColor
-from PyQt5.QtCore import Qt
-import subprocess
 import sys
-import os
 import json
-import re
-import requests
+import subprocess
+import signal
+import os
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QLineEdit, QPushButton, QTextEdit
+)
+from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtGui import QTextCursor
+
+class ScanWorker(QThread):
+    output_received = pyqtSignal(str)
+    finished = pyqtSignal(dict)
+
+    def __init__(self, command):
+        super().__init__()
+        self.command = command
+        self.process = None
+
+    def run(self):
+        try:
+            # Menggunakan Popen agar bisa di-terminate nantinya
+            self.process = subprocess.Popen(
+                self.command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                preexec_fn=os.setsid # Penting untuk kill seluruh group process di Linux
+            )
+
+            full_output = ""
+            for line in self.process.stdout:
+                self.output_received.emit(line.strip())
+                full_output += line
+
+            self.process.wait()
+            
+            try:
+                json_start = full_output.find('{')
+                if json_start != -1:
+                    data = json.loads(full_output[json_start:])
+                    self.finished.emit(data)
+            except:
+                self.finished.emit({})
+
+        except Exception as e:
+            self.output_received.emit(f"CRITICAL: Error executing scan: {str(e)}")
+
+    def stop(self):
+        """Menghentikan proses scanning secara paksa"""
+        if self.process:
+            try:
+                os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+                self.output_received.emit("WARNING: Scanning dihentikan oleh pengguna.")
+            except Exception as e:
+                self.output_received.emit(f"ERROR: Gagal menghentikan proses: {e}")
 
 class AntiWareGUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AntiWare Scanner GUI")
-        self.setGeometry(300, 200, 720, 520)
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle("AntiWare Scanner Pro - Engine v2.1")
+        self.setGeometry(300, 200, 900, 650)
+        self.setStyleSheet("background-color: #121212; color: #e0e0e0; font-family: 'Segoe UI', Arial;")
 
         layout = QVBoxLayout()
 
+        # Input Area
         self.url_input = QLineEdit(self)
-        self.url_input.setPlaceholderText("Masukkan URL target (misal: https://example.com)")
-        layout.addWidget(QLabel("Target URL:"))
+        self.url_input.setPlaceholderText("Masukkan URL target (Contoh: https://target.com)")
+        self.url_input.setStyleSheet("""
+            padding: 12px; background: #1e1e1e; border: 1px solid #333; 
+            border-radius: 5px; color: #00ff00; font-weight: bold;
+        """)
+        layout.addWidget(QLabel("Target Vulnerability URL:"))
         layout.addWidget(self.url_input)
 
-        self.scan_button = QPushButton("Scan Ransomware Website & Deteksi Kunci Enkripsi", self)
-        self.scan_button.clicked.connect(self.run_ransomware_website_scan)
-        layout.addWidget(self.scan_button)
+        # Button Layout
+        btn_layout = QHBoxLayout()
+        
+        self.btn_start = QPushButton("🚀 START SCAN")
+        self.btn_start.clicked.connect(self.start_scan)
+        self.btn_start.setStyleSheet("background: #1b5e20; color: white; padding: 12px; font-weight: bold; border-radius: 5px;")
+        
+        self.btn_stop = QPushButton("🛑 STOP SCAN")
+        self.btn_stop.clicked.connect(self.stop_scan)
+        self.btn_stop.setEnabled(False)
+        self.btn_stop.setStyleSheet("background: #b71c1c; color: white; padding: 12px; font-weight: bold; border-radius: 5px;")
+        
+        btn_layout.addWidget(self.btn_start)
+        btn_layout.addWidget(self.btn_stop)
+        layout.addLayout(btn_layout)
 
-        self.malware_button = QPushButton("Deteksi Malware & Signature", self)
-        self.malware_button.clicked.connect(self.run_malware_scan)
-        layout.addWidget(self.malware_button)
-
-        self.deep_button = QPushButton("Deteksi Virus Valid & Advanced", self)
-        self.deep_button.clicked.connect(self.run_deep_analysis)
-        layout.addWidget(self.deep_button)
-
-        self.upload_button = QPushButton("Unggah File & Scan CVE", self)
-        self.upload_button.clicked.connect(self.run_file_upload_scan)
-        layout.addWidget(self.upload_button)
-
+        # Output Area (HTML Enabled)
         self.output_area = QTextEdit(self)
         self.output_area.setReadOnly(True)
+        self.output_area.setStyleSheet("""
+            background-color: #000000; border: 1px solid #444; 
+            font-family: 'Consolas', 'Courier New'; font-size: 13px;
+        """)
         layout.addWidget(self.output_area)
 
         self.setLayout(layout)
 
-    def scan_ransomware_site(self, url):
-        result = {
-            "url": url,
-            "attacker_ip": None,
-            "encryption_algorithm": None,
-            "ransom_key_hint": None,
-            "suspicious_file": None
-        }
-        try:
-            response = requests.get(url, timeout=10)
-            html = response.text
+    def log(self, message):
+        """Fungsi log cerdas dengan deteksi warna berbasis HTML"""
+        msg_lower = message.lower()
+        
+        # Logika Warna Berdasarkan Keyword
+        if "critical" in msg_lower or "rce" in msg_lower:
+            color = "#ff1744" # Bright Red
+            prefix = "<b>[CRITICAL]</b>"
+        elif "high" in msg_lower or "xss" in msg_lower:
+            color = "#ff9100" # Orange
+            prefix = "<b>[HIGH]</b>"
+        elif "medium" in msg_lower:
+            color = "#ffea00" # Yellow
+            prefix = "<b>[MEDIUM]</b>"
+        elif "warning" in msg_lower or "error" in msg_lower:
+            color = "#f44336" # Soft Red
+            prefix = "[!]"
+        elif "✅" in message or "selesai" in msg_lower:
+            color = "#00e676" # Green
+            prefix = "[+]"
+        else:
+            color = "#ffffff" # White (Default)
+            prefix = "[>]"
 
-            # Cek alamat IP penyerang dari ransom note (simulasi)
-            ip_match = re.findall(r'(?:https?://)?(\d{1,3}(?:\.\d{1,3}){3})', html)
-            if ip_match:
-                result['attacker_ip'] = ip_match[0]
+        formatted_msg = f"<span style='color:{color};'>{prefix} {message}</span>"
+        self.output_area.append(formatted_msg)
+        
+        # Auto-scroll
+        self.output_area.moveCursor(QTextCursor.End)
 
-            # Deteksi algoritma enkripsi yang digunakan
-            if "AES-256" in html:
-                result['encryption_algorithm'] = "AES-256"
-            elif "RSA" in html:
-                result['encryption_algorithm'] = "RSA"
-
-            # Petunjuk kunci ransom
-            ransom_hint = re.findall(r'key=[a-zA-Z0-9+/=]{32,}', html)
-            if ransom_hint:
-                result['ransom_key_hint'] = ransom_hint[0]
-
-            # Deteksi file mencurigakan
-            if "ransom_note.txt" in html or "decrypt_instructions.html" in html:
-                result['suspicious_file'] = "ransom_note.txt"
-
-        except Exception as e:
-            result["error"] = str(e)
-
-        return result
-
-    def run_ransomware_website_scan(self):
+    def start_scan(self):
         url = self.url_input.text().strip()
         if not url:
-            self.output_area.setText("⚠️ Masukkan URL terlebih dahulu.")
+            self.log("ERROR: URL target tidak boleh kosong!")
             return
-        try:
-            result = self.scan_ransomware_site(url)
-            output = json.dumps(result, indent=2)
-            self.render_output(output, scan_type="ransomwareweb")
-        except Exception as e:
-            self.output_area.setText(f"[!] Error saat scanning ransomware website:\n{str(e)}")
 
-    def run_malware_scan(self):
-        try:
-            output = subprocess.check_output(
-                ['python3', 'aware.py'],
-                stderr=subprocess.STDOUT,
-                text=True
-            )
-            self.output_area.setText("🛡️ Hasil Deteksi Malware:\n\n" + output)
-        except subprocess.CalledProcessError as e:
-            self.output_area.setText(f"[!] Error saat scan malware:\n{e.output}")
-        except FileNotFoundError:
-            self.output_area.setText("❌ File 'aware.py' tidak ditemukan. Pastikan file tersebut ada.")
+        self.output_area.clear()
+        self.log(f"Menginisialisasi engine untuk target: {url}")
+        
+        self.btn_start.setEnabled(False)
+        self.btn_stop.setEnabled(True)
 
-    def run_deep_analysis(self):
-        url = self.url_input.text().strip()
-        if not url:
-            self.output_area.setText("⚠️ Masukkan URL terlebih dahulu.")
-            return
-        try:
-            output = subprocess.check_output(
-                ['python3', 'antiware_advanced.py', url],
-                stderr=subprocess.STDOUT,
-                text=True
-            )
-            self.render_output(output, scan_type="advanced")
-        except subprocess.CalledProcessError as e:
-            self.output_area.setText(f"[!] Error saat deep analysis:\n{e.output}")
-        except FileNotFoundError:
-            self.output_area.setText("❌ File 'antiware_advanced.py' tidak ditemukan.")
+        # Menjalankan script eksternal
+        self.worker = ScanWorker(['python3', 'antiware_advanced.py', url])
+        self.worker.output_received.connect(self.log)
+        self.worker.finished.connect(self.scan_complete)
+        self.worker.start()
 
-    def run_file_upload_scan(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Pilih file untuk discan", "", "All Files (*)")
-        if file_path:
-            self.output_area.setText(f"📂 File terpilih: {file_path}\n\n🔎 (simulasi) CVE Lookup untuk file ini belum diimplementasikan secara penuh.")
+    def stop_scan(self):
+        if self.worker:
+            self.worker.stop()
+            self.btn_stop.setEnabled(False)
+            self.btn_start.setEnabled(True)
 
-    def render_output(self, output, scan_type):
-        try:
-            parsed = json.loads(output)
-            if scan_type == "ransomwareweb":
-                ip = parsed.get('attacker_ip', 'Tidak ditemukan')
-                algo = parsed.get('encryption_algorithm', 'Tidak terdeteksi')
-                ransom_key = parsed.get('ransom_key_hint', 'Tidak diketahui')
-                file_hint = parsed.get('suspicious_file', '-')
-                self.output_area.setText(
-                    f"🛡️ Hasil Deteksi Ransomware Website:\n\n"
-                    f"🔍 IP Penyerang: {ip}\n"
-                    f"🔐 Algoritma Kriptografi: {algo}\n"
-                    f"🧩 Petunjuk Kunci: {ransom_key}\n"
-                    f"📄 Lokasi File Terkait: {file_hint}\n"
-                )
-            else:
-                vuln_list = parsed.get('vulnerabilities', [])
-                vuln_count = len(vuln_list)
-                summary = f"✅ Total Deteksi: {vuln_count} kerentanan ditemukan\n\n"
-                detail = ""
-                for vuln in vuln_list:
-                    severity = vuln.get("severity", "unknown").lower()
-                    color = {
-                        "low": "🟢", "medium": "🟡", "high": "🔴"
-                    }.get(severity, "⚪")
-                    detail += f"{color} [{severity.upper()}] {vuln.get('type')}\n - {vuln.get('description')}\n\n"
-                self.output_area.setText(summary + detail)
-        except Exception:
-            self.output_area.setText(output)
+    def scan_complete(self, data):
+        self.btn_start.setEnabled(True)
+        self.btn_stop.setEnabled(False)
+        self.log("✅ Pemindaian selesai sepenuhnya.")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
