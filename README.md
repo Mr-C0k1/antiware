@@ -1,162 +1,65 @@
-# 🕷️ AntiWare - Website Threat & Malware Scanner ( ANTI MALWARE DAN MALWARE SCANNER )
-📌 Ringkasan
-AntiWare adalah sebuah alat keamanan siber otomatis yang digunakan untuk melakukan website vulnerability scanning dan mendeteksi skrip berbahaya (seperti malware, ransomware, dan backdoor) pada:
-Website/URL online File lokal (HTML, JS, PHP, dll). File yang terindikasi malware atau obfuscation File hasil upload pengguna (CTF/web pentest) tool ini memiliki 3 mode utama:
-1. CLI (Command Line Interface)
-2. API Mode (RESTful)
-3.GUI Mode (User Interface visual)
+AntiWare Pro: Advanced Security Research & Evasion Engine
+AntiWare Pro adalah framework pengujian keamanan (Penetration Testing) berbasis Python yang dirancang khusus untuk melakukan audit kerentanan pada infrastruktur web berskala besar. Alat ini mengintegrasikan teknik evasion tingkat tinggi untuk melewati proteksi WAF (Web Application Firewall) modern dan melakukan validasi eksploitasi secara Out-of-Band (OOB).
 
-🛠️ Tujuan & Kegunaan
-AntiWare diciptakan untuk:
-✅ Mempermudah pengujian keamanan website secara otomatis & cepat
-✅ Membantu pentester dan sysadmin mengidentifikasi celah web yang umum dan berbahaya
-✅ Mengedukasi pengguna tentang tanda-tanda serangan siber berbasis web
-✅ Menjadi alat alternatif lightweight selain scanner besar seperti BurpSuite atau OWASP ZAP
-✅ Bisa diintegrasikan ke CI/CD atau scan otomatis website client
+🛡️ Fitur Utama
+Advanced Evasion Engine: Melakukan transformasi payload secara dinamis (Double Encoding, Case Flipping, Null Byte Injection) untuk meminimalisir deteksi signature-based pada WAF.
 
-🔎 Ancaman yang Dapat Dideteksi
-AntiWare tidak hanya memeriksa bug klasik, tapi juga ancaman modern dan terkini, seperti:
+Adaptive Timing Control: Algoritma jeda cerdas (Jittering) untuk meniru perilaku navigasi manusia, efektif melewati sistem anti-bot dan rate-limiting.
 
-Tipe Ancaman	Deskripsi
-🛑 Malware Injection	Deteksi <script> asing dari domain mencurigakan
-🔐 Ransomware Behavior	Mendeteksi file encrypt.php atau pola enkripsi massal
-🐚 Backdoor Upload	Waspadai file shell.php, cmd.php, r57.php yang sering dipakai attacker
-⛏️ Cryptojacking	Deteksi mining script seperti coinhive, mining.js
-🧊 iFrame Phishing	iFrame dari domain luar yang menyematkan konten tidak aman
-🚨 0-Day Pattern Match	Pola eval(base64_decode...), unauthorized_access, debug, dll
+Asynchronous High-Performance: Dibangun di atas asyncio dan aiohttp untuk pemindaian massal yang cepat tanpa mengorbankan stabilitas sistem.
 
-⚙️ Cara Kerja Teknologi
-Input URL atau File Scan halaman HTML/JS target Ekstrak seluruh isi konten Pattern Matching (Regex), Mencocokkan konten terhadap daftar threat signatures (regex) Hasil ScanJika cocok: data disimpan → log → dashboard → laporan JSON/TXT. VirusTotal Integration Mengecek URL terhadap database global VirusTotal (opsional) Laporan & Upload Laporan disimpan lokal (antiware_reports/) dan bisa dikirim ke dashboard eksternal.
+Out-of-Band (OOB) Validation: Integrasi dengan server kolaborator eksternal untuk memverifikasi kerentanan (RCE/SSRF) saat respons in-band diblokir oleh firewall.
 
-🧠 Keunggulan AntiWare
-Fitur	Keterangan
-✅ CLI/GUI/API Mode	Bisa digunakan dari terminal, REST API, atau antarmuka grafis
-🚀 Fast Lightweight	Lebih cepat dari tools besar karena tidak membuat DOM atau overhead berat
-🌐 Integrasi VirusTotal	Cek reputasi domain atau URL target secara real-time
-📄 Output JSON + TXT	Bisa diintegrasikan dengan script lain atau CI/CD
-🔐 Konfigurasi Mudah	API Key, token, dan endpoint dapat diatur langsung lewat CLI
-🎨 Logo & Branding	Menampilkan logo visual di CLI (segi enam + laba-laba)
-**AntiWare** adalah alat keamanan siber open-source untuk mendeteksi ancaman berbasis web secara otomatis, termasuk:
-- malware injection,
-- ransomware script,
-- backdoor shell,
-- cryptojacking,
-- serta pola eksploitasi 0-day.
+Identity Spoofing: Rotasi otomatis pada User-Agent, X-Forwarded-For, dan headers lainnya untuk menjaga anonimitas fingerprint.
 
-AntiWare dapat dijalankan dalam mode CLI (Command Line) dan GUI, serta dapat diinstal sebagai aplikasi `.deb` seperti tools resmi di Kali Linux.
+🚀 Instalasi
+Pastikan sistem Anda telah terinstal Python 3.9+ dan pengelola paket pip.
 
-Scan result for https://vulnerable-site.com:
-Time: 2025-07-14T12:00:00Z
+Clone Repositori:
 
-- Malware Injection (CVE: CVE-2023-28546)
-  Description: Indikasi injeksi script malware obfuscated.
-  Solution: Hapus script, update CMS, dan audit server.
+Bash
+git clone https://github.com/username/antiware-pro.git
+cd antiware-pro
+Instal Dependensi:
 
-- Cryptojacking Script (CVE: CVE-2018-1000402)
-  Description: Script mining crypto ilegal ditemukan.
-  Solution: Blokir domain mining, hapus script, dan update patch.
+Bash
+pip install -r requirements.txt
+(Library utama: aiohttp, beautifulsoup4, fake-useragent, PyQt5)
 
-  AntiWare dilengkapi **antarmuka CLI dan GUI**, mendukung integrasi **VirusTotal**, serta kompatibel dijalankan di sistem operasi Linux (termasuk Kali Linux).
+Berikan Izin Eksekusi:
 
----
+Bash
+chmod +x antiware.py
+🛠️ Panduan Penggunaan
+1. Penggunaan CLI (Mode Cepat)
+Gunakan CLI untuk pemindaian langsung dari terminal dengan output real-time.
 
-## 🎯 Fitur Utama
+Bash
+python3 antiware.py https://target-enterprise.com
+2. Penggunaan GUI (Mode Dashboard)
+Jalankan antarmuka grafis untuk pemantauan hasil yang lebih visual dan manajemen kontrol (Start/Stop).
 
-- 🔍 Scan otomatis terhadap URL dan file lokal
-- 📄 Output dalam format teks & JSON
-- 🌐 Dukungan API Server & GUI
-- 🛡️ Integrasi VirusTotal (API Key opsional)
-- ☁️ Upload hasil ke dashboard eksternal (jika disetel)
-- 🎨 Tampilan logo saat tools dijalankan
-- 🖥️ File `.desktop` untuk launcher GUI
-- 📦 Installer `.deb` (opsional)
-
----
-
-## 🧰 Kebutuhan Sistem
-
-- Python 3.6+
-- Modul: `requests`, `flask`, `bs4`, `PIL`, `dotenv`
-```bash
-pip install -r requirements.txt --break-system-pakages ( jika pip anda bermasalah di GNU kali linux atau ubuntu. )
-pip install requests beautifulsoup4 python-dotenv flask python-telegram-bot Pillow --break-system-packages
-
-#sistematika instalasi github debian
-git clone https://github.com/Mr-C0k1/antiware.git
-cd antiware
-chmod +x install_antiware.sh
-./install_antiware.sh >> or bash command
-pip install -r requirements.txt --break-system-pakages ( jika pip anda bermasalah di GNU kali linux atau ubuntu. )
-antiware https://targetwebsite.com >>> running command
-khusus detector ransomware akira ( python3 antiware.py --monitor ) 
-
-#FILE SCAN MODE
-antiware -f suspicious_file.html
-antiware -l list_url.txt
-
-#API Mode
-antiware --api
-Endpoint aktif di: http://localhost:5000/api/scan
-
-#Gunakan header:
-(pgsql)
-Authorization: Bearer <token>
-Content-Type: application/json
-
-#GUI Interface (Opsional)
-Jika ingin menggunakan GUI:
+Bash
 python3 antiware_gui.py
+3. Konfigurasi Research Engine
+Untuk riset mendalam pada website dengan firewall ketat, Anda dapat memodifikasi parameter pada config.py atau langsung di dalam class AntiWarePro:
 
-# GUI Mode
-python3 /opt/antiware/antiware_gui.py
+Set Proxy: Aktifkan use_proxy=True untuk menggunakan rotasi IP.
 
-#contoh output
-{
-  "url": "http://example.com",
-  "scan_time": "2025-07-14T12:20:00Z",
-  "vulnerabilities": [
-    {
-      "type": "Backdoor Upload",
-      "cve": "CVE-2023-23924",
-      "description": "File backdoor populer ditemukan di path web.",
-      "solution": "Hapus file, audit akses file, dan pasang Web Application Firewall."
-    }
-  ]
-}
+Set OOB Server: Masukkan domain Interact.sh Anda pada variabel oob_domain.
 
+Adjust Timing: Atur min_delay dan max_delay sesuai dengan agresivitas WAF target.
 
+🔬 Arsitektur Teknis
+Proses kerja AntiWare mengikuti siklus Recon-Evasion-Validation:
 
-🛡️ Deteksi Ransomware Akira
-Modul Anti-Akira dalam aware.py mendeteksi secara aktif pola dan aktivitas khas dari ransomware Akira, yang dikenal sebagai ancaman siber global sejak 2023.
+Recon: Melakukan fingerprinting teknologi target dan identifikasi parameter input.
 
-🔍 Deteksi berbasis:
-File ransom note seperti akira_readme.txt
+Evasion: Membungkus payload eksploitasi ke dalam berbagai lapisan encoding.
 
-Ekstensi file terenkripsi: .akira
+Transmission: Mengirimkan trafik melalui rotasi proxy dengan jeda waktu adaptif.
 
-Script enkripsi: akira_enc.php
+OOB Validation: Menunggu interaksi dari server target ke infrastruktur kolaborator peneliti untuk mengonfirmasi celah keamanan.
 
-PowerShell Command: Set-MpPreference -DisableRealtimeMonitoring (digunakan untuk mematikan antivirus sebelum enkripsi)
-
-🧬 Signature Hash (MD5):
-Menggunakan hash signature pada file statik untuk mengenali varian malware yang dikenal.
-
-🔁 Real-time Monitoring:
-Mode pemantauan direktori (--monitor) memungkinkan deteksi ransomware saat file dibuat, dimodifikasi, atau diupload secara mencurigakan.
-
-✅ Tujuan:
-Mendeteksi serangan sebelum ransomware melakukan enkripsi massal
-
-Memberikan laporan langsung ke dashboard atau terminal
-
-Meningkatkan kewaspadaan server web terhadap serangan kriptografi ilegal
-
-# DISCLAMER
-GUNAKAN TOOLS INI DENGAN BIJAK, DEVELOPER TIDAK BERTANGGUNG JAWAB APABILA DI LAKUKAN AKTIVITAS ILEGAL YANG BERSANGKUTAN DENGAN HUKUM
-
-
-
-
-
-
-  
+⚠️ Pernyataan Hukum (Disclaimer)
+Alat ini dibuat hanya untuk tujuan Riset Keamanan dan Edukasi. Penggunaan alat ini terhadap target tanpa izin tertulis yang sah adalah ilegal. Pengembang tidak bertanggung jawab atas penyalahgunaan atau kerusakan yang diakibatkan oleh penggunaan alat ini.
